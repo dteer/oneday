@@ -9,13 +9,13 @@ class Logger():
 
 
         # 定义handler的输出格式
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s  - %(message)s')
 
         # 创建一个logger（dbug）
-        self.logger_dbug = logging.getLogger('mylogger')
+        self.logger_dbug = logging.getLogger('dbuglogger')
         self.logger_dbug.setLevel(logging.DEBUG)
         # 创建一个logger(err)
-        self.logger_err = logging.getLogger('mylogger')
+        self.logger_err = logging.getLogger('errlogger')
         self.logger_err.setLevel(logging.DEBUG)
 
 
@@ -29,7 +29,7 @@ class Logger():
         else:
             path = os.path.join(self.path, name)
             self.fh = logging.FileHandler(path)
-        self.fh.setLevel(logging.ERROR)
+        self.fh.setLevel(logging.DEBUG)
 
 
 
@@ -50,7 +50,12 @@ class Logger():
     def errlog(self, manage):
         # 记录一条日志
         self.logger_err.error(manage)
+        # 关闭打开的文件
+        self.fh.close()
 
+    def skiplog(self,manage):
+        # 记录一条日志
+        self.logger_err.info(manage)
         # 关闭打开的文件
         self.fh.close()
 

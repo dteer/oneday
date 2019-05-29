@@ -56,13 +56,11 @@ class Proxy(Public):
         该网站超出范围的页面显示：Invalid Page
         """
         # 获取当前页
-        page = 1
+        page = 2873
 
         while True:
             time.sleep(1)
             proxy_ip = ''  # 获取数据库中的代理ip
-            # 定义数据库的格式
-            DB_INFO_list = []
             if proxy_ip:
                 proxy_ip = 'http://' + proxy_ip
                 proxy = {'http': proxy_ip, 'https': proxy_ip}
@@ -70,40 +68,46 @@ class Proxy(Public):
                 proxy = None
             try:
                 url = "https://www.kuaidaili.com/free/inha/%s/" % str(page)
-
                 #输出日志到控制端
                 self.logger.dbuglog(url)
                 requests.packages.urllib3.disable_warnings()
-                response = requests.get(url=url, headers=self.headers, proxies=proxy, verify=False)
+                response = requests.get(url=url, headers=self.headers, proxies=proxy, verify=False,timeout=5)
 
                 # 第一层判断,状态码是否为200,如果不是,休眠1秒,继续循环
                 if response.status_code != 200:
+                    self.logger.skiplog(url + '   -----读取错误的url')
                     time.sleep(1)
                     continue
 
-                response.encoding = response.apparent_encoding
-                response_text = response.text
-                html = etree.HTML(response_text)
-                all_info = html.xpath("//div[@id='list']//tbody/tr")
-                for info in all_info:
-                    DB_INFO = {}
-                    DB_INFO['ip'] = info.xpath("./td[1]/text()")[0]
-                    port = info.xpath("./td[2]/text()")[0]
-                    DB_INFO[port] = int(port)
-                    visit_time = info.xpath("./td[6]/text()")[0]
-                    DB_INFO['visit_time'] = float(visit_time.replace('秒', ''))
-                    DB_INFO['proxy_type'] = info.xpath("./td[4]/text()")[0]
-                    ip_port = DB_INFO['ip'] + ':' + port
-                    DB_INFO['_id'] = self.md5(ip_port)
-                    DB_INFO_list.append(DB_INFO)
-                # 存入数据库
-                self.my_set.save(DB_INFO_list)
+                #防止此代码报异常,导致循环无法退出
+                try:
+                    response.encoding = response.apparent_encoding
+                    response_text = response.text
+                    html = etree.HTML(response_text)
+                    all_info = html.xpath("//div[@id='list']//tbody/tr")
+                    for info in all_info:
+                        DB_INFO = {}
+                        DB_INFO['ip'] = info.xpath("./td[1]/text()")[0]
+                        port = info.xpath("./td[2]/text()")[0]
+                        DB_INFO['port'] = int(port)
+                        visit_time = info.xpath("./td[6]/text()")[0]
+                        DB_INFO['visit_time'] = float(visit_time.replace('秒', ''))
+                        DB_INFO['proxy_type'] = info.xpath("./td[4]/text()")[0]
+                        ip_port = DB_INFO['ip'] + ':' + port
+                        DB_INFO['_id'] = self.md5(ip_port)
+                        DB_INFO['ip_port'] = ip_port
+                        # 存入数据库
+                        self.my_set.save(DB_INFO)
+                except Exception as e:
+                    pass
 
                 # 判断是否为最后一页,如果是退出
                 if len(all_info) < 15:
+                    self.logger.skiplog(url + '   -----该url为最后一页')
                     break
             except Exception as e:
                 #保存到日志并打印到控制端
+
                 self.logger.errlog(e)
                 sleep_time = random.randint(1, 20)
                 time.sleep(sleep_time * 0.1)
