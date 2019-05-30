@@ -56,7 +56,7 @@ def check_proxy(ip_list):
     for ip in ip_list:
         try:
             proxy_host = {'http': 'http://%s' % ip, 'https': 'http://%s' % ip}
-            res = requests.get(url, headers=headers, proxies=proxy_host, timeout=1)
+            res = requests.get(url, headers=headers, proxies=proxy_host, timeout=0.5)
         except Exception as e:
             ip_list.remove(ip)
             continue
@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
     #测试代理可用性
     proxy = check_proxy(ip_list)
-    print(len(proxy))
+    print(proxy)
 
     # 访问网站测试
     # test_url = "http://httpbin.org/ip"
@@ -101,4 +101,3 @@ if __name__ == '__main__':
     proxies = random.choice(proxy)
     print(proxies)
     html = requests.get(test_url,proxies=proxies)
-    print(html.text)

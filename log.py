@@ -3,9 +3,8 @@ import os
 
 
 class Logger():
-    def __init__(self, namelog, path=None):
+    def __init__(self, namelog):
         self.namelog = namelog
-        self.path = path
 
 
         # 定义handler的输出格式
@@ -22,13 +21,18 @@ class Logger():
         # 创建一个handler，用于输出到控制台
         ch = logging.StreamHandler()
         ch.setLevel(logging.DEBUG)
+
         # 创建一个handler，用于写入日志文件
-        name = self.namelog + ".log"
-        if self.path is None:
-            self.fh = logging.FileHandler(name)
-        else:
-            path = os.path.join(self.path, name)
-            self.fh = logging.FileHandler(path)
+        name_log = self.namelog + ".log"
+
+        #判断是否存在文件夹log
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        log_dir = os.path.join(base_path,'log')
+        judge = os.path.exists(log_dir)
+        if not judge:
+            os.mkdir(log_dir)
+        log_path = os.path.join(log_dir,name_log)
+        self.fh = logging.FileHandler(log_path)
         self.fh.setLevel(logging.DEBUG)
 
 
