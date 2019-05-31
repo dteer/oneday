@@ -1,1 +1,5 @@
-2019-05-31 01:38:27,004 - ERROR  - https://www.kuaidaili.com/free/inha/11  -----https://www.kuaidaili.com/free/inha/11     璇rl鏃犳硶鍒拌揪
+2019-05-31 10:26:37,388 - INFO  - https://www.kuaidaili.com/free/inha/7   -----该url清洗数据失败或存入数据库失败:CPU_spider
+2019-05-31 10:27:09,028 - INFO  - https://www.kuaidaili.com/free/inha/8   -----该url清洗数据失败或存入数据库失败:CPU_spider
+2019-05-31 10:27:40,658 - INFO  - https://www.kuaidaili.com/free/inha/9   -----该url清洗数据失败或存入数据库失败:CPU_spider
+2019-05-31 10:28:12,262 - INFO  - https://www.kuaidaili.com/free/inha/10   -----该url清洗数据失败或存入数据库失败:CPU_spider
+2019-05-31 10:28:43,908 - INFO  - https://www.kuaidaili.com/free/inha/11   -----该url清洗数据失败或存入数据库失败:CPU_spider

@@ -19,6 +19,7 @@ import time
 import random, hashlib
 from log import Logger
 from pymongo import MongoClient
+import traceback
 
 
 class Public(object):
@@ -76,7 +77,6 @@ class Proxy(Public):
                         time.sleep(1)
                         CUR_COUNT += 1
             except Exception as e:
-                print(e)
                 if CUR_COUNT >= Load_count:
                     self.logger.dbuglog('url退出重连，次数超过最大值：%s' % CUR_COUNT)
                     return False
@@ -115,17 +115,21 @@ class Proxy(Public):
             self.logger.dbuglog('成功访问该url')
             return url, response
         except Exception as e:
+            self.logger.dbuglog('访问该url失败，开始重新连接')
             response = ''
             return url, response
 
     # 解析网站信息
-    def wash_text(self, response):
+    def wash_text(self, response,site=None):
         # 用于网页信息分析，处理
-        all_info = self.kuaidaili(response)
-        return all_info
+        if site is None:
+            bool, all_info = getattr(self, 'kuaidaili')()
+        else:
+            bool, all_info = getattr(self, site)()
+        return bool,all_info
 
     # 快代理网站
-    def CPU_spider(self, start_url, end_url=''):
+    def CPU_spider(self, start_url=None, end_url=None,site=None):
         """
         该网站超出范围的页面显示：Invalid Page
         """
@@ -152,14 +156,17 @@ class Proxy(Public):
                         del_count -= 1
                         # 是否需要退出程序(访问连续url错误次数达到最大值)
                         if del_count <= 0:
-                            self.logger.skiplog(url + '   -----url退出程序，连续url访问次数错误超过最大值')
+                            self.logger.skiplog(url + '   -----url退出程序，连续url访问次数错误超过最大值:CPU_spider')
                             break
 
                         # 判断是否跳到下一个url
                         else:
-                            raise Exception("%s     该url无法到达" % url)
+                            raise Exception("该url无法到达")
                 # 清洗数据
-                all_info = self.wash_text(response)
+                bool,all_info = self.wash_text(response)
+                #记录错误信息到日记表
+                if  not bool:
+                    self.logger.skiplog(url + '   -----该url清洗数据失败或存入数据库失败:CPU_spider')
 
                 # 判断是否为最后一页,如果是退出
                 if 1 <= all_info < 15:
@@ -167,20 +174,29 @@ class Proxy(Public):
                     break
 
             except Exception as e:
+                # traceback.print_exc()
                 # 保存到日志并打印到控制端
-                self.logger.errlog(url + '  -----%s' % str(e))
+                self.logger.errlog(url + '    函数CPU_spider异常  -----%s' % str(e))
                 sleep_time = random.randint(1, 20)
                 time.sleep(sleep_time * 0.1)
             finally:
                 PAGE += 1
 
-    def run(self, url):
-        self.CPU_spider(url)
+    #对外开放的url接口
+    def run(self,start_url=None,end_url=None,site_name=None):
+        if site_name is None:
+            self.CPU_spider(start_url, end_url)
+        else:
+            self.CPU_spider(site_name)
 
     # --------------以下为代理网站的解析
 
     # 快代理网站
-    def kuaidaili(self, response):
+    def kuaidaili(self,response):
+        """
+        :param response:
+        :return: 第一个返回值为清洗结果，第二个返回值为解析结果
+        """
         # 防止此代码报异常,导致循环无法退出
         try:
             response_text = response.text
@@ -202,10 +218,10 @@ class Proxy(Public):
                 # 存入数据库
                 self.my_set.save(DB_INFO)
             self.logger.dbuglog('清洗数据成功并存入数据库成功')
-            return len(all_info)
+            return True,len(all_info)
         except Exception as e:
             self.logger.dbuglog('清洗数据失败或存入数据库失败')
-            return len(all_info)
+            return False,len(all_info)
 
 
 # 过滤并获取可用代理

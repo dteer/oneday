@@ -1,13 +1,22 @@
 import json
 import re
 import requests
-def t():
-    a,b= True,2
-    return a,b
-a= t()
 
-if type(a) is tuple:
-    c,d = a
-    print(c,d)
+import schedule
+import time
 
-t = (1,2,3,4)
+
+def job():
+    print("I'm working...")
+
+
+# schedule.every(10).minutes.do(job)
+# schedule.every().hour.do(job)
+schedule.every().day.at("15:30").do(job)
+# schedule.every(5).to(10).days.do(job)
+# schedule.every().monday.do(job)
+# schedule.every().wednesday.at("13:15").do(job)
+
+while True:
+    schedule.run_pending()
+    time.sleep(1)
