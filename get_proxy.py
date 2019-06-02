@@ -1,23 +1,10 @@
-"""
-此文件为获取各大网站的代理ip
-初始逻辑：利用获取的代理ip进行代理，已达到高速爬去代理ip
-            当没有代理IP，则用自身ip
-数据库存储约束:
-    {   '_id':md5(ip:port),
-        'ip':127.0.0.1,
-        'port':8080,
-        'time':0.5,
-        'type':https/http
-        proxy : 'ip:port'
-    }
-"""
-
 import requests
 from lxml import etree
 from fake_useragent import UserAgent
 import time
 import random, hashlib
 from log import Logger
+import constants
 from pymongo import MongoClient
 import traceback
 
@@ -47,10 +34,16 @@ class Proxy(Public):
     def __init__(self):
         self.stime = 0.5
         self.logger = Logger('log')
-        conn = MongoClient()
-        db = conn['oneday']
-        self.my_set = db['proxy']
+        conn = MongoClient(constants.conn_db)
+        db = conn[constants.proxy_db]
+        self.my_set = db[constants.proxy_colletion]
 
+    #对外开放的url接口
+    def run(self,start_url=None,end_url=None,site_name=None):
+        self.CPU_spider(start_url, end_url,site_name)
+
+
+    #错误重连
     def repeat_load(self, url, Load_count, proxy=None):
         """
         当前url重连允许次数
@@ -97,14 +90,14 @@ class Proxy(Public):
             proxy = ''
         return proxy
 
+
     # 请求url
-    def get_site(self, start_url, PAGE, end_url=''):
+    def get_site(self, start_url, PAGE, end_url='',):
         # url = "https://www.kuaidaili.com/free/inha/%s/" % str(PAGE)
         if not start_url.endswith('/'):
-            start_url = start_url + '/'
-        if not end_url.startswith('/') and end_url != '':
-            end_url = end_url + '/'
-
+            start_url = str(start_url) + '/'
+        if end_url is None:
+            end_url = ''
         url = start_url + str(PAGE) + end_url
         try:
             # 输出日志到控制端
@@ -120,15 +113,15 @@ class Proxy(Public):
             return url, response
 
     # 解析网站信息
-    def wash_text(self, response,site=None):
+    def wash_text(self, response,site):
         # 用于网页信息分析，处理
         if site is None:
-            bool, all_info = getattr(self, 'kuaidaili')()
+            bool, all_info = getattr(self, 'kuaidaili')(response)
         else:
-            bool, all_info = getattr(self, site)()
+            bool, all_info = getattr(self, site)(response)
         return bool,all_info
 
-    # 快代理网站
+    # 处理中心点
     def CPU_spider(self, start_url=None, end_url=None,site=None):
         """
         该网站超出范围的页面显示：Invalid Page
@@ -140,6 +133,8 @@ class Proxy(Public):
 
         while True:
             time.sleep(1)
+            if site:
+                start_url,end_url = self.get_exist_site(site)
             url, response = self.get_site(start_url, PAGE, end_url)
             try:
                 # 当前url重连和连续url错误次数
@@ -163,7 +158,7 @@ class Proxy(Public):
                         else:
                             raise Exception("该url无法到达")
                 # 清洗数据
-                bool,all_info = self.wash_text(response)
+                bool,all_info = self.wash_text(response,site)
                 #记录错误信息到日记表
                 if  not bool:
                     self.logger.skiplog(url + '   -----该url清洗数据失败或存入数据库失败:CPU_spider')
@@ -182,14 +177,16 @@ class Proxy(Public):
             finally:
                 PAGE += 1
 
-    #对外开放的url接口
-    def run(self,start_url=None,end_url=None,site_name=None):
-        if site_name is None:
-            self.CPU_spider(start_url, end_url)
-        else:
-            self.CPU_spider(site_name)
+
 
     # --------------以下为代理网站的解析
+
+    #已知的网站爬取
+    def get_exist_site(self,site):
+        start_url = constants.site_name[site]['start']
+        end_url = constants.site_name[site]['end']
+        return start_url,end_url
+
 
     # 快代理网站
     def kuaidaili(self,response):
@@ -227,15 +224,17 @@ class Proxy(Public):
 # 过滤并获取可用代理
 class Usable_proxy(Public):
     def __init__(self):
-        conn = MongoClient()
-        self.db = conn['oneday']
-        self.my_set = self.db['filer_proxy']
+        self.logger = Logger('filer_log')
+        conn = MongoClient(constants.conn_db)
+        self.db = conn[constants.proxy_db]
+        self.my_set = self.db[constants.filer_colletion]
 
     # 获取测试代理ip
     @property
     def get_proxy(self):
         # 从数据库中获取数据
-        my_colletion = self.db['proxy']
+        my_colletion = self.db[constants.proxy_db]
+        self.logger.dbuglog('从数据库中读取到数据:%s' %my_colletion.count())
         proxy_list = my_colletion.find()
         for val in proxy_list:
             yield val
@@ -245,21 +244,27 @@ class Usable_proxy(Public):
         url = 'https://baidu.com'
         try:
             proxies = {'http': 'http://%s' % proxy, 'https': 'http://%s' % proxy}
-            res = requests.get(url, headers=self.headers, proxies=proxies, timeout=1)
+            res = requests.get(url, headers=self.headers, proxies=proxies, timeout=0.5)
+            self.logger.dbuglog(proxy +' -----该代理ip可用,响应速度在0.5s内')
             return True
         except Exception as e:
             return False
 
     def save(self):
-        try:
+
             for val in self.get_proxy:
-                judge = self.check(val['ip_port'])
-                if judge:
-                    # 保存到数据库
-                    self.my_set.save(val)
-        except Exception as e:
-            pass
+                try:
+                    judge = self.check(val['ip_port'])
+                    if judge:
+                        # 保存到数据库
+                        self.my_set.save(val)
+                        self.logger.dbuglog('存储该优质代理ip')
+                except Exception as e:
+                    self.logger.errlog(val['ip_port'] + '---------该优质代理ip保存失败')
+                    pass
 
 
-proxy = Proxy()
-proxy.run('https://www.kuaidaili.com/free/inha/')
+if __name__ == '__main__':
+    proxy = Proxy()
+    # proxy.run(start_url='https://www.kuaidaili.com/free/inha/')
+    proxy.run(site_name='kuaidaili')

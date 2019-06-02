@@ -86,8 +86,9 @@ def C_format(datalist):
 
 
 if __name__ == '__main__':
-    url = 'http://www.xicidaili.com/nn/'
+    url = 'http://www.xicidaili.com/nn/2'
     ip_list = get_ip_list(url)
+
     #格式转换
     # proxy = C_format(ip_list)
 
